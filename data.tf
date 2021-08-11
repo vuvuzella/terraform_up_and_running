@@ -1,6 +1,7 @@
 // data source represents a piece of read-only information that is fetched from the provider (aws in our case)
 // every time terraform is run
-// data taht can be queried include vpc, subnet, ami ids, ip address ranges, current user identity etc
+// data that can be queried include vpc, subnet, ami ids, ip address ranges, current user identity etc
+// config is a search parameter
 data "aws_vpc" "default" {
     default = true
 }
