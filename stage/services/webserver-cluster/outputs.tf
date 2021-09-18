@@ -16,3 +16,6 @@
 //   value = aws_dynamodb_table.terraform_locks.name
 //   description = "The name of the DynamoDB table"
 // }
+output "ec2_instance_public_ip" {
+  value = aws_instance.example.public_ip
+}
