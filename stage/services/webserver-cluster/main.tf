@@ -29,6 +29,15 @@ data "terraform_remote_state" "db" {
      }
 }
 
+data "template_file" "user_data" {
+    template = file("user-data.sh")
+    vars = {
+      "server_port" = var.webserver_port,
+      "db_address" = data.terraform_remote_state.db.outputs.address
+      "db_port" = data.terraform_remote_state.db.outputs.port
+    }
+}
+
 // Individual EC2 instance
 resource "aws_instance" "example" {
     /*
@@ -44,13 +53,17 @@ resource "aws_instance" "example" {
     }
     // give ec2 instance a start script using heredoc
     // use ${...} interpolation to inline scripts to parametarize the same stuff
-    user_data = <<-EOF
-        #!/bin/bash
-        echo "Hello, World" >> index.html
-        echo "${data.terraform_remote_state.db.outputs.address}" >> index.html
-        echo "${data.terraform_remote_state.db.outputs.port}" >> index.html
-        nohup busybox httpd -f -p ${var.webserver_port} &
-        EOF
+    // user_data = <<-EOF
+    //     #!/bin/bash
+    //     echo "Hello, World" >> index.html
+    //     echo "${data.terraform_remote_state.db.outputs.address}" >> index.html
+    //     echo "${data.terraform_remote_state.db.outputs.port}" >> index.html
+    //     nohup busybox httpd -f -p ${var.webserver_port} &
+    //     EOF
+
+    // use externalized file instead
+    user_data = data.template_file.user_data.rendered
+
     // reference the security group by using resource attribute referemce
     // <provider>_<type>.<name>.<attribute>
     // this creates an implicit dependency
