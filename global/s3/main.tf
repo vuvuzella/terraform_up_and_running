@@ -1,4 +1,5 @@
 provider "aws" {
+  // Need to explicitly set the profile and region if the AWS_PROFILE and AWS_REGION environment variables are not set
     profile = "admin-dev"
     region  = "ap-southeast-2"
 }
