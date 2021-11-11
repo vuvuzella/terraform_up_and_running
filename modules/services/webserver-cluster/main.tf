@@ -1,101 +1,77 @@
-provider "aws" {
-    profile = "admin-dev"
-    region  = "ap-southeast-2"
+// Since this is a module now, provider should be set by the 
+// user of the module, not the module itself
+// provider "aws" {
+//     profile = "admin-dev"
+//     region  = "ap-southeast-2"
+// }
+
+locals {
+  http_port     = 80
+  any_port      = 0
+  any_protocol  = "-1"
+  tcp_protocol  = "tcp"
+  all_ipv4      = ["0.0.0.0/0"]
+  all_ipv6      = ["::/0"]
 }
 
-// use S3 bucket and DynamoDB for terraform state store and locking
+// use S3 bucket and DynamoDB for terraform state store knd locking
 // Make sure the S3 bucket and the dynamoDB table for locking has been deployed
-terraform {
-  backend "s3" {
-    bucket         = "admin-dev-tf-state"
-    key            = "stage/services/webserver-cluster/terraform.tfstate"
-    region         = "ap-southeast-2"
-    dynamodb_table = "terraform-up-and-running-locks"
-    encrypt        = true
-    profile        = "admin-dev"   # uncomment this if environment variable AWS_PROFILE is not set
-                              # see https://stackoverflow.com/questions/55449909/error-while-configuring-terraform-s3-backend
-  }
-}
+// terraform {
+//   backend "s3" {
+//     bucket         = "admin-dev-tf-state"
+//     key            = "stage/services/webserver-cluster/terraform.tfstate"
+//     region         = "ap-southeast-2"
+//     dynamodb_table = "terraform-up-and-running-locks"
+//     encrypt        = true
+//     profile        = "admin-dev"   # uncomment this if environment variable AWS_PROFILE is not set
+//                               # see https://stackoverflow.com/questions/55449909/error-while-configuring-terraform-s3-backend
+//   }
+// }
 
 // Read data-store/mysql's output data
-// this is read-only. uncomment this when mysql module has been deployed
-// data "terraform_remote_state" "db" {
-//     backend = "s3"
-//     config = {
-//       // bucket    = "admin-dev-tf-state"
-//       // key       = "stage/data-stores/mysql/terraform.tfstate"
-//       bucket = "${var.db_remote_state_bucket}"
-//       key = "${var.db_remote_state_key}"
-//       region = "ap-southeast-2"
-//       profile = "admin-dev"
-//      }
-// }
+// this is read-only.
+// Uncomment this when mysql module has been deployed
+data "terraform_remote_state" "db" {
+    backend = "s3"
+    config = {
+      // bucket    = "admin-dev-tf-state"
+      // key       = "stage/data-stores/mysql/terraform.tfstate"
+      bucket    = var.db_remote_state_bucket
+      key       = var.db_remote_state_key
+      region    = "ap-southeast-2"
+      profile   = var.tf_remote_state_profile
+     }
+}
 
 data "template_file" "user_data" {
     template = file("${path.module}/user-data.sh")
     vars = {
       "server_port" = var.webserver_port,
-      // Uncomment these if mysql has been deployed
-      // "db_address" = data.terraform_remote_state.db.outputs.address
-      // "db_port" = data.terraform_remote_state.db.outputs.port
-      "db_address" = "dummy address"
-      "db_port" = "1234 Dummy port"
+      "db_address"  = data.terraform_remote_state.db.outputs.address
+      "db_port"     = data.terraform_remote_state.db.outputs.port
     }
 }
-
-// Individual EC2 instance
-// resource "aws_instance" "example" {
-//     /*
-//     ubuntu Server 20.04 LTS (HVM),
-//     EBS General Purpose (SSD) Volume Type.
-//     Support available from Canonical
-//     */
-//     ami = "ami-0567f647e75c7bc05"
-//     // instance_type = terraform.workspace == "default" ? "t2.micro" : "t2.micro"   // choose value based on workspace
-//     instance_type = "t2.micro"
-//     tags = {
-//         Name = "example"
-//     }
-//     // give ec2 instance a start script using heredoc
-//     // use ${...} interpolation to inline scripts to parametarize the same stuff
-//     // user_data = <<-EOF
-//     //     #!/bin/bash
-//     //     echo "Hello, World" >> index.html
-//     //     echo "${data.terraform_remote_state.db.outputs.address}" >> index.html
-//     //     echo "${data.terraform_remote_state.db.outputs.port}" >> index.html
-//     //     nohup busybox httpd -f -p ${var.webserver_port} &
-//     //     EOF
-// 
-//     // use externalized file instead
-//     user_data = data.template_file.user_data.rendered
-// 
-//     // reference the security group by using resource attribute referemce
-//     // <provider>_<type>.<name>.<attribute>
-//     // this creates an implicit dependency
-//     // vpc_security_group_ids = [data.aws_security_group.default_sg.id]
-//     vpc_security_group_ids = [aws_security_group.ec2instance_example_sg.id]
-// }
 
 resource "aws_security_group" "ec2instance_example_sg" {
     // name = "ec2instance_example_sg"
     name = "${var.cluster_name}-instance"
     ingress = [{
-        cidr_blocks = [ "0.0.0.0/0" ]
-        ipv6_cidr_blocks = ["::/0"]
-        description = "accept all incoming traffic from all ip addresses"
-        from_port = var.webserver_port
-        protocol = "tcp"
-        to_port = var.webserver_port
-        prefix_list_ids = []
-        security_groups = []
-        self = true
+        cidr_blocks         = local.all_ipv4
+        ipv6_cidr_blocks    = local.all_ipv6
+        description         = "accept all incoming traffic from all ip addresses"
+        from_port           = var.webserver_port
+        protocol            = "tcp"
+        to_port             = var.webserver_port
+        prefix_list_ids     = []
+        security_groups     = []
+        self                = true  // whether the security group itself will be added as source to the ingress/egress rule
     }]
 }
 
 // configure auto scaling group
 resource "aws_launch_configuration" "example" {
-    image_id = "ami-0567f647e75c7bc05"
-    instance_type = "t2.micro"
+    image_id        = "ami-0567f647e75c7bc05"
+    instance_type   = var.instance_type
     security_groups = [aws_security_group.ec2instance_example_sg.id]
     // user_data = <<-EOF
     //     #!/bin/bash
@@ -112,6 +88,10 @@ resource "aws_launch_configuration" "example" {
     }
 }
 
+resource aws_launch_template "example" {
+    instance_type = var.instance_type
+}
+
 resource "aws_autoscaling_group" "example" {
     launch_configuration = aws_launch_configuration.example.name
     vpc_zone_identifier = data.aws_subnet_ids.default.ids
@@ -120,78 +100,82 @@ resource "aws_autoscaling_group" "example" {
     target_group_arns = [ aws_lb_target_group.asg.arn ]
     health_check_type = "ELB"   // default is EC2. 
 
-    min_size = 2
-    max_size = 10
+    // instance_type   = var.instance_type
+    min_size        = var.min_size
+    max_size        = var.max_size
+
+    launch_template {
+        id = aws_launch_template.example.id
+    }
+
     tag {
-        key = "Name"
-        value = "${var.cluster_name}-example"
+        key                 = "Name"
+        value               = "${var.cluster_name}-example"
         propagate_at_launch = true
     }
 }
 
 resource "aws_lb" "example" {
     // name = "terraform-asg-example"
-    name = "${var.cluster_name}-aws-alb"
-    load_balancer_type = "application"
-    subnets = data.aws_subnet_ids.default.ids
-    security_groups = [aws_security_group.alb.id]
+    name                = "${var.cluster_name}-aws-alb"
+    load_balancer_type  = "application"
+    subnets             = data.aws_subnet_ids.default.ids
+    security_groups     = [aws_security_group.alb.id]
 }
 
 resource "aws_lb_listener" "http" {
-    load_balancer_arn = aws_lb.example.arn
-    port = 80
-    protocol = "HTTP"
+    load_balancer_arn   = aws_lb.example.arn
+    port                = local.http_port
+    protocol            = "HTTP"
 
     // by default, return a simple 404 page
     default_action {
         type = "fixed-response"
         fixed_response {
-            content_type = "text/plain"
-            message_body = "404: page not found"
-            status_code = 404
+            content_type    = "text/plain"
+            message_body    = "404: page not found"
+            status_code     = 404
         }
     }
 }
 
 resource "aws_security_group" "alb" {
-    // name = "terraform-example-alb"
     name = "${var.cluster_name}-alb"
 
     # Allow inbound http requests
     ingress {
-      cidr_blocks = [ "0.0.0.0/0" ]
-      description = "ingress for application load balancer"
-      from_port = 80
+      cidr_blocks   = local.all_ipv4
+      description   = "ingress for application load balancer"
+      from_port     = local.http_port
+      protocol      = "tcp"
+      to_port       = local.http_port
       // ipv6_cidr_blocks = [ "::/0" ]
       // prefix_list_ids = []
-      protocol = "tcp"
       // security_groups = []
       // self = false
-      to_port = 80
     }
 
     # Allow all outbound requests
     egress {
-        from_port = 0
-        to_port = 0
-        protocol = "-1"
-        cidr_blocks = ["0.0.0.0/0"]
+        from_port   = local.any_port
+        to_port     = local.any_port
+        protocol    = local.any_protocol  // -1 is any protocol
+        cidr_blocks = local.all_ipv4
     }
 }
-
 resource "aws_lb_target_group" "asg" {
-    name = "terraform-asg-example"
-    port = var.webserver_port
-    protocol = "HTTP"
-    vpc_id = data.aws_vpc.default.id
+    name        = "terraform-asg-example"
+    port        = var.webserver_port
+    protocol    = "HTTP"
+    vpc_id      = data.aws_vpc.default.id
 
     health_check {
-        path = "/"
-        protocol = "HTTP"
-        matcher = "200"
-        interval = 15
-        timeout = 3
-        healthy_threshold = 2
+        path                = "/"
+        protocol            = "HTTP"
+        matcher             = "200"
+        interval            = 15
+        timeout             = 3
+        healthy_threshold   = 2
         unhealthy_threshold = 2
     }
 }

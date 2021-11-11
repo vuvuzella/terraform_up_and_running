@@ -22,3 +22,23 @@ variable "db_remote_state_key" {
   description = "The path for the database's remote state in s3"
   type = string
 }
+
+variable "instance_type" {
+  description = "The type of ec2 instance to run"
+  type = string
+}
+
+variable "min_size" {
+  description = "The minimum number of ec2 instance in the ASG"
+  type = number
+}
+
+variable "max_size" {
+  description = "The maximum number of ec2 instance in the ASG"
+  type = number
+}
+
+variable "tf_remote_state_profile" {
+  description = "the profile to be used when retrieving the remote state "
+  type = string
+}
