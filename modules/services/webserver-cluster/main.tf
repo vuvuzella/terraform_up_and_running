@@ -1,10 +1,3 @@
-// Since this is a module now, provider should be set by the 
-// user of the module, not the module itself
-// provider "aws" {
-//     profile = "admin-dev"
-//     region  = "ap-southeast-2"
-// }
-
 locals {
   http_port     = 80
   any_port      = 0
@@ -14,28 +7,12 @@ locals {
   all_ipv6      = ["::/0"]
 }
 
-// use S3 bucket and DynamoDB for terraform state store knd locking
-// Make sure the S3 bucket and the dynamoDB table for locking has been deployed
-// terraform {
-//   backend "s3" {
-//     bucket         = "admin-dev-tf-state"
-//     key            = "stage/services/webserver-cluster/terraform.tfstate"
-//     region         = "ap-southeast-2"
-//     dynamodb_table = "terraform-up-and-running-locks"
-//     encrypt        = true
-//     profile        = "admin-dev"   # uncomment this if environment variable AWS_PROFILE is not set
-//                               # see https://stackoverflow.com/questions/55449909/error-while-configuring-terraform-s3-backend
-//   }
-// }
-
 // Read data-store/mysql's output data
 // this is read-only.
 // Uncomment this when mysql module has been deployed
 data "terraform_remote_state" "db" {
     backend = "s3"
     config = {
-      // bucket    = "admin-dev-tf-state"
-      // key       = "stage/data-stores/mysql/terraform.tfstate"
       bucket    = var.db_remote_state_bucket
       key       = var.db_remote_state_key
       region    = "ap-southeast-2"
@@ -53,7 +30,6 @@ data "template_file" "user_data" {
 }
 
 resource "aws_security_group" "ec2instance_example_sg" {
-    // name = "ec2instance_example_sg"
     name = "${var.cluster_name}-instance"
     ingress = [{
         cidr_blocks         = local.all_ipv4
@@ -73,13 +49,7 @@ resource "aws_launch_configuration" "example" {
     image_id        = "ami-0567f647e75c7bc05"
     instance_type   = var.instance_type
     security_groups = [aws_security_group.ec2instance_example_sg.id]
-    // user_data = <<-EOF
-    //     #!/bin/bash
-    //     echo "Hello, World" > index.html
-    //     nohup busybox httpd -f -p ${var.webserver_port} &
-    //     EOF
-
-    user_data = data.template_file.user_data.rendered
+    user_data       = data.template_file.user_data.rendered
 
     // create_before destroy is required when using a launch config with auto scaling group
     // https://www.terraform.io/docs/providers/aws/r/launch_configuration.html
@@ -94,7 +64,7 @@ resource aws_launch_template "example" {
 
 resource "aws_autoscaling_group" "example" {
     launch_configuration = aws_launch_configuration.example.name
-    vpc_zone_identifier = data.aws_subnet_ids.default.ids
+    vpc_zone_identifier  = data.aws_subnet_ids.default.ids
 
     // take advantage of first-class integration between ASG and ALB
     target_group_arns = [ aws_lb_target_group.asg.arn ]

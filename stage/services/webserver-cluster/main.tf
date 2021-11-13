@@ -30,3 +30,8 @@ module "webserver_cluster" {
   max_size                = 10
   tf_remote_state_profile = local.aws_profile
 }
+
+output "alb_dns_name" {
+  value = module.webserver_cluster.alb_dns_name
+  description = "The domain name of the load balancer"
+}
