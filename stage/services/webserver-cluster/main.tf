@@ -21,7 +21,7 @@ terraform {
 }
 
 module "webserver_cluster" {
-  source                  = "../../../modules/services/webserver-cluster"
+  source                  = "git@github.com:vuvuzella/tur_module_global_infra.git//services/webserver-cluster?ref=v0.0.1"
   cluster_name            = "webserver-${local.environment}"
   db_remote_state_bucket  = "admin-dev-tf-state"
   db_remote_state_key     = "${local.environment}/data-stores/mysql/terraform.tfstate"
