@@ -5,6 +5,7 @@ locals {
 
 provider "aws" {
   region = "ap-southeast-2"
+  profile = "admin-dev"
 }
 
 terraform {
@@ -39,7 +40,7 @@ resource "aws_autoscaling_schedule" "scale_in_at_night" {
 }
 
 module "webserver_cluster" {
-  source                  = "../../../modules/services/webserver-cluster"
+  source                  = "../../../../modules/services/webserver-cluster"
   cluster_name            = "webserver-${local.environment}"
   db_remote_state_bucket  = "admin-dev-tf-state"
   db_remote_state_key     = "${local.environment}/data-stores/mysql/terraform.tfstate"
@@ -47,6 +48,11 @@ module "webserver_cluster" {
   min_size                = 2
   max_size                = 10
   tf_remote_state_profile = local.aws_profile
+
+  custom_tags = {
+    Owner = "team-foo"
+    DeployedBy = "Terraform"
+  }
 }
 
 output "alb_dns_name" {

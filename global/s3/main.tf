@@ -34,7 +34,7 @@ resource "aws_s3_bucket" "terraform_state" {
 }
 
 // Use DynamoDB as a locking mechanism for terraform
-resource "aws_dynamodb_table" "locks" {
+resource "aws_dynamodb_table" "terraform_locks" {
   name              = "terraform-up-and-running-locks"
   billing_mode      = "PAY_PER_REQUEST"
   hash_key          = "LockID"
@@ -43,7 +43,13 @@ resource "aws_dynamodb_table" "locks" {
     name = "LockID"
     type = "S"
   }
+
+  lifecycle {
+    create_before_destroy= true
+  }
+
 }
+
 
 // use S3 bucket and DynamoDB for terraform state store and locking
 // Make sure the S3 bucket and the dynamoDB table for locking has been deployed
