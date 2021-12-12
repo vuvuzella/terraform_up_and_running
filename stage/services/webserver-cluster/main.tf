@@ -29,6 +29,8 @@ module "webserver_cluster" {
   min_size                = 2
   max_size                = 10
   tf_remote_state_profile = local.aws_profile
+  enable_autoscaling      = true
+  enable_new_user_data    = false
 }
 
 output "alb_dns_name" {
