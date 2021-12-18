@@ -1,14 +1,14 @@
 output "db_password" {
-  value = jsonencode(data.aws_secretsmanager_secret_version.db_password.secret_string)
+  value = jsonencode(module.sql_db.db_password)
   sensitive = true
 }
 
 output "address" {
-  value = aws_db_instance.db_example.address
+  value = module.sql_db.address
   description = "Connect to database at this endpoint"
 }
 
 output "port" {
-  value = aws_db_instance.db_example.port
+  value = module.sql_db.port
   description = "The port the database is listening on"
 }

@@ -14,16 +14,8 @@ terraform {
   }
 }
 
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = "mysql-master-password-stage"
-}
-
-resource "aws_db_instance" "db_example" {
-  identifier_prefix = "terraform-up-and-running"
-  engine            = "mysql"
-  allocated_storage = 10
-  instance_class    = "db.t2.micro"
-  name              = "example_database"
-  username          = "admin_dev"
-  password          = jsondecode(data.aws_secretsmanager_secret_version.db_password.secret_string).value
+module "sql_db" {
+  source = "git@github.com:vuvuzella/tur_module_global_infra.git//data-stores/mysql?ref=v0.0.2"
+  db_name = "example_database"
+  db_password_secrets_id = "mysql-master-password-stage"
 }
