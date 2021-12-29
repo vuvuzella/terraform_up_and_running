@@ -27,10 +27,12 @@ module "webserver_cluster" {
   db_remote_state_key     = "${local.environment}/data-stores/mysql/terraform.tfstate"
   instance_type           = "t2.micro"
   min_size                = 2
-  max_size                = 10
+  max_size                = 2
   tf_remote_state_profile = local.aws_profile
   enable_autoscaling      = true
-  enable_new_user_data    = false
+
+  ami = "ami-0567f647e75c7bc05"
+  server_text = "New Server Text"
 }
 
 output "alb_dns_name" {
