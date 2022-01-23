@@ -73,5 +73,8 @@ func CreateHelloOpts(t *testing.T, appDirStage string, dbOpts *terraform.Options
 		// Retry deployment and number between retries
 		MaxRetries:         5,
 		TimeBetweenRetries: 5 * time.Second,
+		RetryableTerraformErrors: map[string]string{
+			"RequestError: send request failed": "Throttling issue?",
+		},
 	}
 }
