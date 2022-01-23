@@ -1,4 +1,4 @@
-module tests/tests
+module tests
 
 go 1.17
 
