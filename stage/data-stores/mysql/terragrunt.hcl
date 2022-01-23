@@ -1,6 +1,7 @@
-terraform {
-  source = "git@github.com:vuvuzella/tur_module_global_infra.git//data-stores/mysql?ref=v0.0.3"
-}
+// Put this in terraform instead of terragrunt
+// terraform {
+//   source = "git@github.com:vuvuzella/tur_module_global_infra.git//data-stores/mysql?ref=v1.0.0"
+// }
 
 include {
   path = find_in_parent_folders()
